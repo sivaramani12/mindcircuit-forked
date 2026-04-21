@@ -6,7 +6,7 @@ pipeline {
         stage('checkout') {
             steps {
                 echo 'git checkout stage'
-				git branch: 'main', url: 'https://github.com/devopstraininghub/mindcircuit17d.git'
+				git branch: 'main', url: 'https://github.com/sivaramani12/mindcircuit-forked.git'
             }
         }
 
