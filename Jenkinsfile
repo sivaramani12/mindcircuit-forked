@@ -1,29 +1,99 @@
-pipeline {
+pipeline{
     agent any
-
+    
+    tools {
+        maven 'Maven'
+    }
+    
     stages {
-	
-        stage('checkout') {
-            steps {
-                echo 'git checkout stage'
-				git branch: 'main', url: 'https://github.com/devopstraininghub/mindcircuit17d.git'
+        
+        stage('Git Code Checkout'){
+            steps{
+                echo 'Checkout Git Repo'
+                git branch: 'main', url: 'https://github.com/sivaramani12/mindcircuit-forked.git'
             }
         }
-
-        stage('build') {
-            steps {
-                echo 'Building with maven '
-				sh 'mvn clean install '
+        
+        stage('Sonarqube scan'){
+            steps{
+                withSonarQubeEnv('SonarQube'){
+                    sh '''
+                    mvn clean sonar:sonar
+                    '''
+                }
             }
         }
-
-        stage('Deploy') {
-            steps {
-                echo 'Deploying to tomcat'
-				deploy adapters: [tomcat9(alternativeDeploymentContext: '', credentialsId: 'tomcat', path: '', url: 'http://54.160.144.88:8081/')], contextPath: 'insta', war: '**/*.war'
-				
+        
+        stage('Quality gate'){
+            steps{
+                timeout(time: 5, unit: 'MINUTES'){
+                    waitForQualityGate abortPipeline: true
+                }
             }
-        }		
-		
+        }
+        
+        stage('Build Docker Image'){
+            steps{
+                echo 'Building docker Image'
+                
+                sh '''
+                    docker build -t sivaramani12/sivaram-repo-1:${BUILD_NUMBER} -f Dockerfile .
+                '''
+            }
+        }
+        
+        stage('Trivy Scan'){
+            steps{
+                echo 'Scanning Image'
+                sh '''
+                    trivy image --severity HIGH,CRITICAL --exit-code 1 sivaramani12/sivaram-repo-1:${BUILD_NUMBER}
+                '''
+            }
+        }
+        
+        stage('Push to Docker hub'){
+            steps{
+                script{
+                    withCredentials([string(credentialsId: 'DockerhubToken', variable: 'Dockerhubtoken')]) {
+                        sh '''
+                            docker login -u sivaramani12 -p ${Dockerhubtoken}
+                        '''
+
+                        sh '''
+                            docker push sivaramani12/sivaram-repo-1:${BUILD_NUMBER}
+                        '''
+                    }
+                }
+            }
+        }
+        
+        stage('Update Deployment file'){
+            
+            environment {
+                GIT_REPO_NAME = "mindcircuit-forked"
+                GIT_USER_NAME = "sivaramani12"
+            }
+            
+            steps{
+                echo 'Update Deployment File'
+
+                withCredentials([string(credentialsId: 'git-jenkinstoken', variable: 'gittoken')]) {
+
+                    sh '''
+                        git config user.email "jenkins@gmail.com"
+                        git config user.name "jenkins"
+
+                        sed -i "s/sivaramani12:.*/sivaramani12:${BUILD_NUMBER}/g" deploymentfiles/deploy.yaml
+
+                        git add .
+                        git commit -m "Update deployment image to version ${BUILD_NUMBER}" || true
+
+                        git push https://${gittoken}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git HEAD:main
+                    '''
+                }
+            }
+        }
     }
 }
+
+check this whole script and tell me if there are any issues, errors, 
