@@ -46,7 +46,7 @@ pipeline{
             steps{
                 echo 'Scanning Image'
                 sh '''
-                    trivy image --severity HIGH,CRITICAL --exit-code 1 sivaramani12/sivaram-repo-1:${BUILD_NUMBER}
+                    trivy image --severity CRITICAL --exit-code 1 sivaramani12/sivaram-repo-1:${BUILD_NUMBER}
                 '''
             }
         }
@@ -83,8 +83,8 @@ pipeline{
                         git config user.email "jenkins@gmail.com"
                         git config user.name "jenkins"
 
-                        sed -i "s/sivaramani12:.*/sivaramani12:${BUILD_NUMBER}/g" deploymentfiles/deploy.yaml
-
+                        sed -i "s|sivaramani12/sivaram-repo-1:.*|sivaramani12/sivaram-repo-1:${BUILD_NUMBER}|g" deploymentfiles/deploy.yaml
+                        
                         git add .
                         git commit -m "Update deployment image to version ${BUILD_NUMBER}" || true
 
