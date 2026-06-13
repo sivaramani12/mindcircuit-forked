@@ -24,6 +24,6 @@ spec:
     spec:
       containers: 
       - name: facebook-container
-        image: sivaramani12/sivaram-repo-1:16
+        image: sivaramani12/sivaram-repo-1:18
         ports:
         - containerPort: 8080
